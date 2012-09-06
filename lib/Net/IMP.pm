@@ -3,7 +3,7 @@ use warnings;
 
 package Net::IMP;
 
-our $VERSION = 0.27;
+our $VERSION = 0.30;
 
 use Carp 'croak';
 use Scalar::Util 'dualvar';
@@ -39,7 +39,7 @@ my @log_levels = qw(
     IMP_LOG_EMERG
 );
 our @EXPORT_OK = @log_levels;
-our @EXPORT_TAGS = ( ':log' => \@log_levels );
+our %EXPORT_TAGS = ( log => \@log_levels );
 
 # the numerical order of the constants describes priority when
 # cascading modules, e.g. replacement has a higher value then
@@ -71,11 +71,11 @@ use constant IMP_MAXOFFSET    => (
 use constant IMP_LOG_DEBUG    => dualvar(1,'debug');
 use constant IMP_LOG_INFO     => dualvar(2,'info');
 use constant IMP_LOG_NOTICE   => dualvar(3,'notice');
-use constant IMP_LOG_WARNING  => dualvar(3,'warning');
-use constant IMP_LOG_ERR      => dualvar(3,'error');
-use constant IMP_LOG_CRIT     => dualvar(3,'critical');
-use constant IMP_LOG_ALERT    => dualvar(3,'alert');
-use constant IMP_LOG_EMERG    => dualvar(3,'emergeny');
+use constant IMP_LOG_WARNING  => dualvar(4,'warning');
+use constant IMP_LOG_ERR      => dualvar(5,'error');
+use constant IMP_LOG_CRIT     => dualvar(6,'critical');
+use constant IMP_LOG_ALERT    => dualvar(7,'alert');
+use constant IMP_LOG_EMERG    => dualvar(8,'emergency');
 
 
 # no response types in default implementation

@@ -1,3 +1,9 @@
+0.30 2012/9/5
+- fix integer in dualvar IMP_LOG_*, was mostly 3 :(
+0.29 2012/9/5
+- fix typo in IMP_LOG_EMERG
+0.28 2012/9/5
+- fixed EXPORT_TAGS for IMP_LOG_*
 0.27 2012/9/5
 - added in 0.26 forgotten IMP_LOG_ERR
 0.26 2012/9/5
