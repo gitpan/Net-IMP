@@ -6,7 +6,11 @@ use Data::Dumper;
 
 rt(
     'Net::IMP::Pattern',
-    'action=deny&adata=matched%20regex&rx=(?^:foo%25bar%20foot)&rxlen=12',
+    [
+	# different perl versions use different rx stringifications
+	'action=deny&adata=matched%20regex&rx=(?^:foo%25bar%20foot)&rxlen=12',
+	'action=deny&adata=matched%20regex&rx=(?-xism:foo%25bar%20foot)&rxlen=12',
+    ],
     {
 	action => 'deny',
 	adata  => 'matched regex',
@@ -17,12 +21,16 @@ rt(
 
 rt(
     'Net::IMP::ProtocolPinning',
-    'dir0=0&dir1=1&ignore_order=1&max_unbound0=0&max_unbound1=0&rx0=(?^:\d{4})&rx1=(?^:%20\r?\n\r?\n)&rxlen0=4&rxlen1=5',
+    [
+	# different perl versions use different rx stringifications
+	'dir0=0&dir1=1&ignore_order=1&max_unbound0=0&max_unbound1=0&rx0=(?^:\d{4})&rx1=(?^:%20\r?\n\r?\n)&rxlen0=4&rxlen1=5',
+	'dir0=0&dir1=1&ignore_order=1&max_unbound0=0&max_unbound1=0&rx0=(?-xism:\d{4})&rx1=(?-xism:%20\r?\n\r?\n)&rxlen0=4&rxlen1=5',
+    ],
     {
-        rules => [
-            { dir => '0', rxlen => '4', rx => qr/\d{4}/ },
-            { dir => '1', rxlen => '5', rx => qr/ \r?\n\r?\n/ },
-        ],
+	rules => [
+	    { dir => '0', rxlen => '4', rx => qr/\d{4}/ },
+	    { dir => '1', rxlen => '5', rx => qr/ \r?\n\r?\n/ },
+	],
 	max_unbound => ['0','0'],
 	ignore_order => '1',
     }
@@ -31,16 +39,34 @@ rt(
 sub rt {
     my ($class,$str,$cfg) = @_;
     eval "require $class" or BAIL_OUT("cannot load $class");
+    my @str = ref($str) ? (@$str):($str);
 
     my $str2 = $class->cfg2str(%$cfg);
-    is($str2,$str,"$class cfg2str");
+    if ( grep { $_ eq $str2 } @str ) {
+	pass("$class cfg2str");
+    } else {
+	diag("$str2 does not match any of @str");
+	fail("$class cfg2str");
+    }
 
-    my %cfg2 = $class->str2cfg($str);
-    my $dp2 = Dumper(\%cfg2);
-    # $rx = qr/$rx/; $rx = qr/$rx/ will put twice into (?^:...
-    $dp2 =~s{qr/\Q(?^\E:(\Q(?^\E:.*?\))\)/}{qr/$1/}g;
-    is($dp2,Dumper($cfg),"$class str2cfg");
+    my $ok = 0;
+    for my $str ( @str ) {
+	my %cfg2;
+	eval { %cfg2 = $class->str2cfg($str) }
+	    # maybe unsupported regex syntax for this perl version
+	    or next;
+	my $dp2 = Dumper(\%cfg2);
+	# $rx = qr/$rx/; $rx = qr/$rx/ will put twice into (?^:...
+	my $prefix = qr{\?(?:\^|-xism):};
+	$dp2 =~s{qr/\($prefix(\($prefix.*?\))\)/}{qr/$1/}g;
+	if ( $dp2 eq Dumper($cfg) ) {
+	    pass("$class str2cfg");
+	    $ok = 1;
+	    last;
+	} else {
+	    diag("$dp2\nvs\n".Dumper($cfg));
+	}
+    }
+    fail("$class str2cfg") if ! $ok;
 
 }
-
-
