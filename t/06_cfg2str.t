@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 4;
+use Test::More tests => 6;
 use Data::Dumper;
 
 
@@ -32,6 +32,20 @@ rt(
 	    { dir => '1', rxlen => '5', rx => qr/ \r?\n\r?\n/ },
 	],
 	max_unbound => ['0','0'],
+	ignore_order => '1',
+    }
+);
+
+rt(
+    'Net::IMP::ProtocolPinning',
+    [
+	# different perl versions use different rx stringifications
+	'dir0=0&ignore_order=1&max_unbound0&max_unbound1=0&rx0=(?^:\d{4})&rxlen0=4',
+	'dir0=0&ignore_order=1&max_unbound0&max_unbound1=0&rx0=(?-xism:\d{4})&rxlen0=4',
+    ],
+    {
+	rules => [ { dir => '0', rxlen => '4', rx => qr/\d{4}/ }, ],
+	max_unbound => [undef,'0'],
 	ignore_order => '1',
     }
 );
