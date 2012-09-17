@@ -67,7 +67,7 @@ for my $module (@module) {
     my ($mod,$args) = $module =~m{^([a-z][\w:]*)(?:=(.*))?$}i
 	or die "invalid module $module";
     eval "require $mod" or die "cannot load $module";
-    my %args = split(',',$args//'');
+    my %args = $mod->str2cfg($args//'');
     push @factory, $mod->new_factory(%args, rtypes => \@rtypes) 
 	or croak("cannot create Net::IMP factory for $mod");
 }
@@ -118,7 +118,7 @@ sub new {
 sub new_connection {
     my ($self,$meta) = @_;
     my $imp = $self->{imp} 
-	&& $self->{imp}->new_context(meta => $meta);
+	&& $self->{imp}->new_analyzer(meta => $meta);
     my $pcap = $self->{pcap}->tcp_conn(
 	$meta->{saddr}, $meta->{sport},
 	$meta->{daddr}, $meta->{dport},
