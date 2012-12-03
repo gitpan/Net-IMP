@@ -1,9 +1,9 @@
 --- #YAML:1.0
 name:               Net-IMP
-version:            0.45
+version:            0.46
 abstract:           ~
 author:  []
-license:            unknown
+license:            perl
 distribution_type:  module
 configure_requires:
     ExtUtils::MakeMaker:  0
