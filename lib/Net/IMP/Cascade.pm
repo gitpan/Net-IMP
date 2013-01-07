@@ -17,53 +17,75 @@ use Hash::Util 'lock_keys';
 use Net::IMP::Debug;
 use Data::Dumper;
 
-{
-    my @implemented_myself = (
-	IMP_PASS,
-	IMP_PREPASS,
-	IMP_REPLACE,
-	IMP_DENY,
-	IMP_DROP,
-	#IMP_TOSENDER, # not supported yet
-	IMP_LOG,
-	IMP_ACCTFIELD,
-    );
+my %rtypes_implemented_myself = map { $_ => 1 } (
+    IMP_PASS,
+    IMP_PREPASS,
+    IMP_REPLACE,
+    IMP_DENY,
+    IMP_DROP,
+    #IMP_TOSENDER, # not supported yet
+    IMP_LOG,
+    IMP_ACCTFIELD,
+);
 
-    # combine all rtypes from the parts
-    # check, if we support each of the rtypes
-    # then return the combination of all needed rtypes
-    sub USED_RTYPES {
-	my ($self,%args) = @_;
-	my %used;
-	for my $p ( @{$args{parts} || $self->{parts}} ) {
-	    my %u = map { $_ => $_ } $p->USED_RTYPES;
-	    %used = (%used,%u);
-	    delete @u{@implemented_myself};
-	    croak "module ".$p->class." needs types ".join(' ',keys(%u)) if %u;
+sub interface {
+    my Net::IMP::Cascade $factory = shift;
+    my $parts = $factory->{factory_args}{parts};
+
+    # collect interfaces by part
+    my @if4part;
+    for my $p ( @$parts ) {
+	my @if;
+	for my $if ( $p->interface(@_)) {
+	    # $if should require only return types I support
+	    push @if,$if 
+		if ! grep { ! $rtypes_implemented_myself{$_} } @{ $if->[1] };
 	}
-	return values %used;
+	@if or return; # nothing in common
+	push @if4part,\@if
     }
-}
 
-{
+    # find interfaces which are supported by all parts
+    my @common;
+    for( my $i=0;$i<@if4part;$i++ ) {
+	for my $if_i ( @{  $if4part[$i] } ) {
+	    my ($in_i,$out_i) = @$if_i;
+	    # check if $if_i matches at least on interface description in 
+	    # all other parts, e.g. $if_i is same or included in $if_k
+	    # - data type/proto: $in_k should be undef or same as $in_i
+	    # - return types: $out_i should include $out_k
+	    for( my $k=0;$k<@if4part;$k++ ) {
+		next if $i == $k; # same
+		for my $if_k ( @{  $if4part[$k] } ) {
+		    my ($in_k,$out_k) = @$if_k;
+		    # should be same data type or $in_k undef
+		    next if $in_k and ( ! $in_i or $in_k != $in_i ); 
+		    # $out_i should include all of $out_k
+		    my %out_k = map { $_ => 1 } @$out_k;
+		    delete @out_k{ @$out_i };
+		    next if %out_k; # some in k are not in i
 
-    # restrict given dtypes to the ones supported by all
-    sub supported_dtypes {
-	my ($self,$types,%args) = @_;
-	my %supp;
-	my $parts = $args{parts} || $self->{parts};
-	for my $p ( @$parts ) {
-	    $supp{$_}{$p}=1 for $p->supported_dtypes($types);
+		    # junction if i and k
+		    push @common,[ $in_k,$out_i ];
+		}
+	    }
 	}
-	return grep { keys %{ $supp{$_}} == @$parts } @$types;
     }
+
+    # remove duplicates from match
+    my (@uniq,%m);
+    for( @common ) {
+	my $key = ( $_->[0] // '<undef>' )."\0".join("\0",sort @{$_->[1]});
+	push @uniq,$key if ! $m{$key}++;
+    }
+    return @uniq;
 }
 
 sub new_analyzer {
-    my ($class,%args) = @_;
+    my ($factory,%args) = @_;
 
-    my $p     = delete $args{parts};
-    my $self  = $class->SUPER::new_analyzer(%args);
+    my $p     = $factory->{factory_args}{parts};
+    my $self  = $factory->SUPER::new_analyzer(%args);
     my @imp = map { $_->new_analyzer(%args) } @$p;
     $self->{parts} = \@imp;
 
@@ -207,7 +229,7 @@ sub new_analyzer {
 
 	# add data to buf:
 	# if there is no gap and rtype of buf matches and no adjustments are 
-	# used and dtype is IMP_DATA_STREAM, then we can add data to an 
+	# used and dtype is stream type, then we can add data to an 
 	# existing buf, otherwise we need to create a new one
 	# data from buffers with adjustments can never be merged, because
 	# adjustments are considered beeing at the end of the buf, not
@@ -215,11 +237,14 @@ sub new_analyzer {
 	if ( $pos and $endpos > $pos ) {
 	    die "overlapping data ($pos,$endpos)"
 
-	} elsif ( ( ! $pos or $endpos == $pos ) 
-	    and ( ! $bufs->[-1]{rtype} or ($rtype||0) == $bufs->[-1]{rtype} )
-	    and ! $gbadjust and ! $bufs->[-1]{gbadjust} 
-	    and ( ! defined $bufs->[-1]{dtype} or 
-		$dtype == IMP_DATA_STREAM and $dtype == $bufs->[-1]{dtype} )
+	} elsif ( 
+	    ( ! $pos or $endpos == $pos ) # no gap
+	    # caused by same result type
+	    and ( ! $bufs->[-1]{rtype} or ($rtype||0) == $bufs->[-1]{rtype} ) 
+	    and ! $gbadjust and ! $bufs->[-1]{gbadjust} # no adjustments 
+	    and ( # same streaming data type
+		! defined $bufs->[-1]{dtype} or 
+		$dtype <0 and $dtype == $bufs->[-1]{dtype} )
 	    ) {
 	    # append
 	    $endpos += length($data);
@@ -306,7 +331,7 @@ sub new_analyzer {
 		    $DEBUG && debug("fwd part(buf) lppos=%d endpos=%d keep=%d",
 			$p->{lppos}, $buf->{endpos}, $keep);
 
-		    if ( $buf->{dtype} != IMP_DATA_STREAM ) {
+		    if ( $buf->{dtype} >0 ) {
 			# only streaming data might be split into arbitrary
 			# chunks, others can only be handled as whole packets
 			# thus just ignore this (pre)pass and hope we will get
@@ -756,7 +781,7 @@ sub new_analyzer {
 
 			    # Remove only first part of buffer up to $offset.
 			    # Partial replace is only available for stream data
-			    if ( $buf->{dtype} != IMP_DATA_STREAM ) {
+			    if ( $buf->{dtype} >0 ) {
 				croak( sprintf("cannot replace part of buffer %s (%s/%d)",
 				    $buf->{dtype},$buf->{rtype},$buf->{endpos}));
 			    }
@@ -922,7 +947,8 @@ sub data {
 }
 
 sub DESTROY {
-    shift->{closef}();
+    my $closef = shift->{closef};
+    $closef->() if $closef;
 }
 
 # This package just wraps each buffer in parts[dir][pi]{bufs}.

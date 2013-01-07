@@ -35,5 +35,10 @@
       }
    },
    "release_status" : "stable",
-   "version" : "0.52"
+   "resources" : {
+      "repository" : {
+         "url" : "https://github.com/noxxi/p5-net-imp"
+      }
+   },
+   "version" : "0.54"
 }
