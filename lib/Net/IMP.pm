@@ -2,7 +2,7 @@ use strict;
 use warnings;
 
 package Net::IMP;
-our $VERSION = '0.56';
+our $VERSION = '0.57';
 
 use Carp 'croak';
 use Scalar::Util 'dualvar';
@@ -488,6 +488,8 @@ protocol type (like IMP_DATA_HTTP) which includes multiple data types.
 
 is a list of the return types, which are used by the interface, e.g. IMP_PASS,
 IMP_LOG,...
+if \@output_types is not given or an empty list, it will be assumed, that the
+caller supports any return types.
 
 =back
 
@@ -669,7 +671,7 @@ notably Alexander Bluhm and others at genua.de.
 
 =head1 COPYRIGHT
 
-Copyright by Steffen Ullrich.
+Copyright 2012,2013 Steffen Ullrich.
 
 This module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
