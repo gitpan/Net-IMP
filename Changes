@@ -1,3 +1,11 @@
+0.61 2013/03/06
+- support for UDP in bin/imp-pcap-filter
+- support for packet types in Net::IMP::Filter
+- support for packet types in Net::IMP::Pattern
+- added new plugin Net::IMP::Example::IRCShout
+- added new plugin Net::IMP::Example::LogServerCertificate
+0.60 2013/02/19
+- replace can now replace empty data, like to add data at eof
 0.59 2013/01/18
 - fix Cascade::get_interface
 - Net::IMP::Debug - let re_use DEBUG_RX variable from other lib too
