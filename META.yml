@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Net-IMP
-version:            0.613
+version:            0.614
 abstract:           ~
 author:  []
 license:            perl
