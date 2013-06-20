@@ -59,6 +59,7 @@ sub str2cfg {
 # validate config, return list of errors
 sub validate_cfg {
     my (undef,%cfg) = @_;
+    delete $cfg{eventlib}; # accepted everywhere
     return %cfg ? "unexpected config keys ".join(', ',keys %cfg) : ();
 }
 
@@ -235,28 +236,64 @@ all L<Net::IMP> plugins.
 
 =item cfg2str|str2cfg
 
-These functions convert a C<%config> to or from a C<$string>.
+These functions are used to convert a C<%config> to or from a C<$string>.
 In this implementation the <$string> is a single line, encoded similar to the
 query_string in HTTP URLs.
 
 There is no need to re-implement this function unless you want to serialize the
 config into a different format.
 
-=item $class->validate_cfg(%config)
+=item $class->validate_cfg(%config) -> @errors
 
-This function verifies the config and thus should be reimplemented in each
-sub-package.
+This function is used to verify the config and thus should be re-implemented in
+each sub-package. It is expected to return a list of errors or an empty list if
+the config has no errors.
 
-The implementation in this package just complains, if there are any data left
-in C<%config> and thus should be called with any config data not handled by
-your own validation function.
+The only valid entry for %config in the implementation in this package is
+C<eventlib>, which provides a way for analyzers to hook into the data providers
+event handling. 
+If there are any other entries are left in C<%config> it will complain.
+Thus all arguments specific to the derived analyzer should be handled in a
+derived C<validate_cfg> method and removed from C<%config> before calling the
+method in this base class.
 
 =item $class->new_factory(%args)
 
-This will create a new factory class.
+This function is used to create a new factory class.
 C<%args> will be saved into C<$factory->{factory_args}> and later used when
 creating the analyzer.
-There is no need to re-implement this method.
+There is usually no need to re-implement this method.
+
+The only argument provided by some data providers to this base class is
+C<eventlib>, which provides an interface to the data providers event handling.
+It must be defined as an object with the following API, so that analyzers can
+hook into it:
+
+=over 8
+
+=item $ev->onread( filehandle,[ callback ])
+
+Sets or removes callback for read events on filehandle. 
+
+=item $ev->onwrite( filehandle,[ callback ])
+
+Sets or removes callback for write events on filehandle. 
+
+=item $ev->timer( after, callback, [ interval ])
+
+Sets C<callback> to be executed after C<after> seconds.
+Reschedules timer afterwards every C<interval> seconds if C<interval> is given.
+Returns object which must be preserved by the caller, the timer will be
+cancelled if the object gets undefined.
+
+=item $ev->now
+
+Returns the eventlibs idea of the current time.
+
+=back
+
+If C<eventlib> is not given some classes might refuse creation of the factory
+object.
 
 =back
 
