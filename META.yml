@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Net-IMP
-version:            0.624
+version:            0.625
 abstract:           Inspection and Modification Protocol to interface with proxies, IDS...
 author:
     - Steffen Ullrich <sullr@cpan.org>
